@@ -14,6 +14,7 @@ PAPERTRAIL_API_TOKEN = os.environ.get('PAPERTRAIL_API_TOKEN', None)
 ARCHIVES_URL = 'https://papertrailapp.com/api/v1/archives.json'
 DEFAULT_REMAIN_SIZE = 25
 HEADERS = {'X-Papertrail-Token': PAPERTRAIL_API_TOKEN}
+MIN_INTERVAL_SEC = 0.1
 
 
 def get_ppheader(response):
@@ -109,7 +110,7 @@ def main():
                 )
 
                 if len(future_list) < remain:
-                    time.sleep(0.2)
+                    time.sleep(MIN_INTERVAL_SEC)
                     continue
 
                 for future in future_list:
@@ -127,7 +128,7 @@ def main():
                     remain = DEFAULT_REMAIN_SIZE
                     continue
 
-                time.sleep(0.2)
+                time.sleep(MIN_INTERVAL_SEC)
 
 
 if __name__ == "__main__":
