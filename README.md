@@ -1,5 +1,9 @@
 # Papertrail log archives downloader
 
+`ppad`, stands for _PaPertrail log Archives Downloader_, can download log archives from [Papertrail](https://www.papertrail.com/).
+
+The downloading process works on multi-thread and checking [API's _Rate Limits from the header](https://documentation.solarwinds.com/en/Success_Center/papertrail/Content/kb/how-it-works/http-api.htm#rate-limits) so you can download the archives fastly and safely.
+
 ## Install
 
 Please use [pip](https://pip.pypa.io/)
