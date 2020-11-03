@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import sys
 import os
 import time
@@ -129,7 +127,3 @@ def main():
                     continue
 
                 time.sleep(MIN_INTERVAL_SEC)
-
-
-if __name__ == "__main__":
-    main()
