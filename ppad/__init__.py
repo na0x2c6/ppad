@@ -83,6 +83,7 @@ def main():
 
     _from, to = parse_span()
 
+    print("fetching log archives information ...", end="\r", file=sys.stderr)
     r = requests.get(ARCHIVES_URL, headers=HEADERS)
     r.raise_for_status()
 
