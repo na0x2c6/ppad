@@ -1,12 +1,11 @@
 import sys
 import os
 import time
-import datetime
 from concurrent import futures
 import requests
 import progressbar
 
-from .lib.util import date_parse
+from .lib.util import parse_date, parse_argv
 
 
 PAPERTRAIL_API_TOKEN = os.environ.get('PAPERTRAIL_API_TOKEN', None)
@@ -46,37 +45,6 @@ def do_download(url, filename, index):
             time.sleep(1)
 
 
-def parse_argv(argv: list[str]) -> tuple[datetime, datetime]:
-    if len(argv) == 1:
-        return None, None
-
-    date_to: datetime = None
-    date_from: datetime = None
-    from_str: str
-    to_str: str
-
-    span = argv[1].split('~')
-    if len(span) == 1:
-        from_str = to_str = span[0]
-    else:
-        [from_str, to_str, *_] = span
-
-    if from_str:
-        date_from = date_parse(from_str)
-
-    if to_str:
-        date_to = date_parse(to_str)
-
-    if date_from is None and date_to is None:
-        # probably `argv` would be only character '~'
-        return None, None
-
-    if date_from == date_to:
-        date_to = date_to + datetime.timedelta(days=1)
-
-    return date_from, date_to
-
-
 def main():
     if not PAPERTRAIL_API_TOKEN:
         print('Not set the environment variable `PAPERTRAIL_API_TOKEN`',
@@ -94,9 +62,9 @@ def main():
         if (
             # If `date_from` is None,
             # then it gets archives without `date_from` limitation
-            ((not date_from) or date_from <= date_parse(ar["start"]))
+            ((not date_from) or date_from <= parse_date(ar["start"]))
             # ... and `date_to` is as well.
-            and ((not date_to) or date_parse(ar["end"]) < date_to)
+            and ((not date_to) or parse_date(ar["end"]) < date_to)
         )
     ]
 
