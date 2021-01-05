@@ -3,10 +3,11 @@ import os
 import time
 import datetime
 from concurrent import futures
-import pytz
-from dateutil import parser
 import requests
 import progressbar
+
+from .lib.util import date_parse
+
 
 PAPERTRAIL_API_TOKEN = os.environ.get('PAPERTRAIL_API_TOKEN', None)
 ARCHIVES_URL = 'https://papertrailapp.com/api/v1/archives.json'
@@ -45,34 +46,35 @@ def do_download(url, filename, index):
             time.sleep(1)
 
 
-def parse_span():
-    if len(sys.argv) == 1:
+def parse_argv(argv: list[str]) -> tuple[datetime, datetime]:
+    if len(argv) == 1:
         return None, None
 
-    f = t = None
-    fromstr = tostr = ''
-    span = sys.argv[1].split('~')
+    date_to: datetime = None
+    date_from: datetime = None
+    from_str: str
+    to_str: str
+
+    span = argv[1].split('~')
     if len(span) == 1:
-        fromstr = tostr = span[0]
+        from_str = to_str = span[0]
     else:
-        [fromstr, tostr, *_] = span
+        [from_str, to_str, *_] = span
 
-    if fromstr:
-        f = parser.isoparse(fromstr)
-        if not f.tzname():
-            utc = pytz.timezone('UTC')
-            f = utc.localize(f)
+    if from_str:
+        date_from = date_parse(from_str)
 
-    if tostr:
-        t = parser.isoparse(tostr)
-        if not t.tzname():
-            utc = pytz.timezone('UTC')
-            t = utc.localize(t)
+    if to_str:
+        date_to = date_parse(to_str)
 
-    if tostr and fromstr == tostr:
-        t = t + datetime.timedelta(days=1)
+    if date_from is None and date_to is None:
+        # probably `argv` would be only character '~'
+        return None, None
 
-    return f, t
+    if date_from == date_to:
+        date_to = date_to + datetime.timedelta(days=1)
+
+    return date_from, date_to
 
 
 def main():
@@ -81,16 +83,22 @@ def main():
               file=sys.stderr)
         sys.exit(1)
 
-    _from, to = parse_span()
+    date_from, date_to = parse_argv(sys.argv)
 
     print("fetching log archives information ...", end="\r", file=sys.stderr)
     r = requests.get(ARCHIVES_URL, headers=HEADERS)
     r.raise_for_status()
 
-    archives = [ar for ar in r.json()
-                if (not _from or _from <= parser.isoparse(ar["start"]))
-                and (not to or parser.isoparse(ar["end"]) < to)
-                ]
+    archives = [
+        ar for ar in r.json()
+        if (
+            # If `date_from` is None,
+            # then it gets archives without `date_from` limitation
+            ((not date_from) or date_from <= date_parse(ar["start"]))
+            # ... and `date_to` is as well.
+            and ((not date_to) or date_parse(ar["end"]) < date_to)
+        )
+    ]
 
     with futures.ThreadPoolExecutor(max_workers=10) as executor:
         future_list = []
