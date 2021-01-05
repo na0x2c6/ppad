@@ -1,12 +1,12 @@
 import sys
 import os
 import time
-import datetime
 from concurrent import futures
-import pytz
-from dateutil import parser
 import requests
 import progressbar
+
+from .lib.util import parse_date, parse_argv
+
 
 PAPERTRAIL_API_TOKEN = os.environ.get('PAPERTRAIL_API_TOKEN', None)
 ARCHIVES_URL = 'https://papertrailapp.com/api/v1/archives.json'
@@ -45,52 +45,28 @@ def do_download(url, filename, index):
             time.sleep(1)
 
 
-def parse_span():
-    if len(sys.argv) == 1:
-        return None, None
-
-    f = t = None
-    fromstr = tostr = ''
-    span = sys.argv[1].split('~')
-    if len(span) == 1:
-        fromstr = tostr = span[0]
-    else:
-        [fromstr, tostr, *_] = span
-
-    if fromstr:
-        f = parser.isoparse(fromstr)
-        if not f.tzname():
-            utc = pytz.timezone('UTC')
-            f = utc.localize(f)
-
-    if tostr:
-        t = parser.isoparse(tostr)
-        if not t.tzname():
-            utc = pytz.timezone('UTC')
-            t = utc.localize(t)
-
-    if tostr and fromstr == tostr:
-        t = t + datetime.timedelta(days=1)
-
-    return f, t
-
-
 def main():
     if not PAPERTRAIL_API_TOKEN:
         print('Not set the environment variable `PAPERTRAIL_API_TOKEN`',
               file=sys.stderr)
         sys.exit(1)
 
-    _from, to = parse_span()
+    date_from, date_to = parse_argv(sys.argv)
 
     print("fetching log archives information ...", end="\r", file=sys.stderr)
     r = requests.get(ARCHIVES_URL, headers=HEADERS)
     r.raise_for_status()
 
-    archives = [ar for ar in r.json()
-                if (not _from or _from <= parser.isoparse(ar["start"]))
-                and (not to or parser.isoparse(ar["end"]) < to)
-                ]
+    archives = [
+        ar for ar in r.json()
+        if (
+            # If `date_from` is None,
+            # then it gets archives without `date_from` limitation
+            ((not date_from) or date_from <= parse_date(ar["start"]))
+            # ... and `date_to` is as well.
+            and ((not date_to) or parse_date(ar["end"]) < date_to)
+        )
+    ]
 
     with futures.ThreadPoolExecutor(max_workers=10) as executor:
         future_list = []
